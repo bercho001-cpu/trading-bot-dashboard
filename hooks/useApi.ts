@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
+const BYPASS_TOKEN = process.env.NEXT_PUBLIC_VERCEL_BYPASS_TOKEN;
 
 interface Health {
   status: string;
@@ -55,7 +56,14 @@ async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
   }
 
   try {
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    let url = `${API_URL}${endpoint}`;
+
+    // Add bypass token for Vercel Deployment Protection if available
+    if (BYPASS_TOKEN) {
+      url = `${url}${endpoint.includes('?') ? '&' : '?'}x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${BYPASS_TOKEN}`;
+    }
+
+    const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
         'Content-Type': 'application/json',

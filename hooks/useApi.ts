@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY;
 const BYPASS_TOKEN = process.env.NEXT_PUBLIC_VERCEL_BYPASS_TOKEN;
 
@@ -50,28 +50,20 @@ interface Trade {
 }
 
 async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
-  if (!API_URL || !API_KEY) {
-    console.error('API URL or Key not configured');
-    return null;
-  }
-
   try {
     let url = `${API_URL}${endpoint}`;
 
-    // Add bypass token for Vercel Deployment Protection if available
     if (BYPASS_TOKEN) {
       url = `${url}${endpoint.includes('?') ? '&' : '?'}x-vercel-set-bypass-cookie=true&x-vercel-protection-bypass=${BYPASS_TOKEN}`;
     }
 
-    const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (API_KEY) headers['Authorization'] = `Bearer ${API_KEY}`;
+
+    const response = await fetch(url, { headers });
 
     if (!response.ok) {
-      console.error(`API error: ${response.status}`);
+      console.error(`API error: ${response.status} ${response.statusText} for ${url}`);
       return null;
     }
 
@@ -111,5 +103,5 @@ export function useApi() {
     return () => clearInterval(interval);
   }, []);
 
-  return { health, stats, sessions, trades, loading };
+  return { health, stats, sessions, trades, loading, refetch: fetchData };
 }

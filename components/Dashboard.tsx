@@ -5,11 +5,29 @@ import { StatsCards } from './StatsCards';
 import { PerformanceChart } from './PerformanceChart';
 import { SessionsTable } from './SessionsTable';
 import { TradesTable } from './TradesTable';
-import { useApi } from '@/hooks/useApi';
+import { useStream } from '@/hooks/useStream';
 import { Activity, TrendingUp } from 'lucide-react';
 
 export function Dashboard() {
-  const { stats, sessions, trades, loading, health } = useApi();
+  const stream = useStream();
+  const [loading, setLoading] = useState(true);
+
+  const stats = stream.stats ? {
+    total_trades: stream.stats.total_trades,
+    win_rate: stream.stats.win_rate,
+    total_pnl: stream.stats.total_pnl,
+    paper_sessions: 0,
+    testnet_sessions: 0,
+    backtest_sessions: 0,
+  } : null;
+
+  const sessions = stream.sessions;
+  const trades = stream.trades;
+  const health = stream.connected ? { status: 'ok', version: '4.0.0' } : { status: 'disconnected', version: '4.0.0' };
+
+  useEffect(() => {
+    if (stream.connected) setLoading(false);
+  }, [stream.connected]);
   const [time, setTime] = useState<string>('');
 
   useEffect(() => {
@@ -48,30 +66,58 @@ export function Dashboard() {
               ? 'bg-green-900/30 text-green-300'
               : 'bg-red-900/30 text-red-300'
           }`}>
-            {health?.status === 'ok' ? '● Live' : '● Offline'}
+            {health?.status === 'ok' ? '● Live' : health?.status ? '● Offline' : '● Unknown'}
           </div>
+
+          {loading && (
+            <div className="mt-3 text-xs text-slate-400">Connecting to stream...</div>
+          )}
         </div>
       </div>
 
       {/* Stats Cards */}
-      {stats && <StatsCards stats={stats} />}
+      {loading && (
+        <div className="py-6 text-slate-400">Fetching latest data from API...</div>
+      )}
+      {!loading && stats && <StatsCards stats={stats} />}
+      {!loading && !stats && (
+        <div className="py-6 text-sm text-slate-400">No stats available — check API or click Retry.</div>
+      )}
 
       {/* Charts & Tables Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Performance Chart */}
         <div className="lg:col-span-2">
-          {sessions && <PerformanceChart sessions={sessions} />}
+          {sessions && sessions.length > 0 ? (
+            <PerformanceChart sessions={sessions} />
+          ) : (
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-6 border border-slate-700 text-slate-400">
+              No session data. Ensure the API at /api/sessions is reachable.
+            </div>
+          )}
         </div>
 
         {/* Latest Sessions */}
         <div>
-          {sessions && <SessionsTable sessions={sessions.slice(0, 5)} />}
+          {sessions && sessions.length > 0 ? (
+            <SessionsTable sessions={sessions.slice(0, 5)} />
+          ) : (
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-6 border border-slate-700 text-slate-400">
+              No recent sessions to display.
+            </div>
+          )}
         </div>
       </div>
 
       {/* Trades Table */}
       <div>
-        {trades && <TradesTable trades={trades.slice(0, 20)} />}
+        {trades && trades.length > 0 ? (
+          <TradesTable trades={trades.slice(0, 20)} />
+        ) : (
+          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-6 border border-slate-700 text-slate-400">
+            No recent trades to display.
+          </div>
+        )}
       </div>
 
       {/* Footer */}

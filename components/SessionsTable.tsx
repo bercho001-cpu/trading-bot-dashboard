@@ -11,7 +11,7 @@ interface Session {
   losses: number;
   net_pnl: number;
   profit_factor: number;
-  sharpe_ratio: number;
+  sharpe_ratio?: number;
   status: string;
 }
 

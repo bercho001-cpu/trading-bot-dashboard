@@ -9,7 +9,7 @@ interface Session {
   total_trades: number;
   win_rate?: number;
   profit_factor: number;
-  sharpe_ratio: number;
+  sharpe_ratio?: number;
 }
 
 export function PerformanceChart({ sessions }: { sessions: Session[] }) {

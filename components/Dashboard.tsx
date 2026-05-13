@@ -5,30 +5,28 @@ import { StatsCards } from './StatsCards';
 import { PerformanceChart } from './PerformanceChart';
 import { SessionsTable } from './SessionsTable';
 import { TradesTable } from './TradesTable';
-import { useStream } from '@/hooks/useStream';
-import { Activity, TrendingUp } from 'lucide-react';
+import useDashboardStore from '@/store/useDashboardStore';
+import { Activity } from 'lucide-react';
+import { Card } from './ui/Card';
+import { Button } from './ui/Button';
+import { Skeleton } from './ui/Skeleton';
 
 export function Dashboard() {
-  const stream = useStream();
-  const [loading, setLoading] = useState(true);
+  const health = useDashboardStore((s) => s.health);
+  const stats = useDashboardStore((s) => s.stats);
+  const sessions = useDashboardStore((s) => s.sessions);
+  const trades = useDashboardStore((s) => s.trades);
+  const loading = useDashboardStore((s) => s.loading);
+  const refetch = useDashboardStore((s) => s.refetch);
+  const start = useDashboardStore((s) => s.start);
+  const stop = useDashboardStore((s) => s.stop);
 
-  const stats = stream.stats ? {
-    total_trades: stream.stats.total_trades,
-    win_rate: stream.stats.win_rate,
-    total_pnl: stream.stats.total_pnl,
-    paper_sessions: 0,
-    testnet_sessions: 0,
-    backtest_sessions: 0,
-  } : null;
-
-  const sessions = stream.sessions;
-  const trades = stream.trades;
-  const health = stream.connected ? { status: 'ok', version: '4.0.0' } : { status: 'disconnected', version: '4.0.0' };
+  const [time, setTime] = useState<string>('');
 
   useEffect(() => {
-    if (stream.connected) setLoading(false);
-  }, [stream.connected]);
-  const [time, setTime] = useState<string>('');
+    start();
+    return () => stop();
+  }, [start, stop]);
 
   useEffect(() => {
     const updateTime = () => {
@@ -36,7 +34,7 @@ export function Dashboard() {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
-        hour12: true
+        hour12: true,
       }));
     };
     updateTime();
@@ -59,19 +57,26 @@ export function Dashboard() {
             <p className="text-sm text-slate-400 mt-1">Real-time performance tracking</p>
           </div>
         </div>
+
         <div className="text-right">
           <div className="text-2xl font-mono font-bold text-cyan-400">{time}</div>
           <div className={`text-xs px-3 py-1 rounded-full mt-2 ${
-            health?.status === 'ok'
-              ? 'bg-green-900/30 text-green-300'
-              : 'bg-red-900/30 text-red-300'
+            health?.status === 'ok' ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-300'
           }`}>
             {health?.status === 'ok' ? '● Live' : health?.status ? '● Offline' : '● Unknown'}
           </div>
 
-          {loading && (
-            <div className="mt-3 text-xs text-slate-400">Connecting to stream...</div>
-          )}
+          <div className="mt-3 flex items-center justify-end gap-2">
+            {loading ? (
+              <Button variant="ghost" className="px-3 py-1" disabled>
+                <Skeleton className="w-16 h-4" />
+              </Button>
+            ) : (
+              <Button onClick={() => refetch()} variant="primary">
+                Retry
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -79,10 +84,12 @@ export function Dashboard() {
       {loading && (
         <div className="py-6 text-slate-400">Fetching latest data from API...</div>
       )}
-      {!loading && stats && <StatsCards stats={stats} />}
-      {!loading && !stats && (
-        <div className="py-6 text-sm text-slate-400">No stats available — check API or click Retry.</div>
+      {!loading && stats && (
+        <Card>
+          <StatsCards stats={stats} />
+        </Card>
       )}
+      {!loading && !stats && <div className="py-6 text-sm text-slate-400">No stats available — check API or click Retry.</div>}
 
       {/* Charts & Tables Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -91,9 +98,7 @@ export function Dashboard() {
           {sessions && sessions.length > 0 ? (
             <PerformanceChart sessions={sessions} />
           ) : (
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-6 border border-slate-700 text-slate-400">
-              No session data. Ensure the API at /api/sessions is reachable.
-            </div>
+            <Card>No session data. Ensure the API at /api/sessions is reachable.</Card>
           )}
         </div>
 
@@ -102,9 +107,7 @@ export function Dashboard() {
           {sessions && sessions.length > 0 ? (
             <SessionsTable sessions={sessions.slice(0, 5)} />
           ) : (
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-6 border border-slate-700 text-slate-400">
-              No recent sessions to display.
-            </div>
+            <Card>No recent sessions to display.</Card>
           )}
         </div>
       </div>
@@ -114,9 +117,7 @@ export function Dashboard() {
         {trades && trades.length > 0 ? (
           <TradesTable trades={trades.slice(0, 20)} />
         ) : (
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl p-6 border border-slate-700 text-slate-400">
-            No recent trades to display.
-          </div>
+          <Card>No recent trades to display.</Card>
         )}
       </div>
 
@@ -126,9 +127,7 @@ export function Dashboard() {
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
           Connected via proxy.fernandosoria.site
         </div>
-        <div className="text-xs text-slate-500">
-          v4.0.0 • Last updated: {time}
-        </div>
+        <div className="text-xs text-slate-500">v4.0.0 • Last updated: {time}</div>
       </div>
     </div>
   );
